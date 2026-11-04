@@ -223,7 +223,7 @@ function yAt(c){
   const a=anchors[lo],b=anchors[lo+1];if(b&&b.t>a.t)return a.y+(c-a.t)/(b.t-a.t)*(b.y-a.y);return a.y+(c-a.t)*pps;
 }
 function secAt(c){const s=S();let i=0;for(let k=0;k<s.length;k++)if(c>=s[k].start)i=k;return i}
-function tick(){
+function tick(){if(running)saveRun();
   const c=clockS(),s=S(),i=secAt(c),sec=s[i];
   if(i!==curI){document.querySelectorAll(".sechead.cur").forEach(h=>h.classList.remove("cur"));const h=$("sec-"+i);if(h)h.classList.add("cur");$("secName").textContent=sec.name;curI=i}
   $("clock").textContent=fmt(Math.max(0,sec.end-c));
@@ -265,7 +265,7 @@ function start(){
   layout();tick();clearInterval(timer);timer=setInterval(()=>{if(!pausedAt)tick()},500);
   cancelAnimationFrame(raf);raf=requestAnimationFrame(frame);
 }
-function finish(){
+function finish(){clearRun();
   running=false;clearInterval(timer);cancelAnimationFrame(raf);
   const b=$("body");
   b.innerHTML=`<div class="done"><div class="label">Session complete</div><p style="color:var(--dim)">${ver==="rec"?"End of recording.":"Hand off to your closing."}</p><button id="again">Back to plan</button></div>`;
@@ -316,6 +316,16 @@ window.addEventListener("resize",()=>{if(running){layout();tick()}});
 const setVer=v=>{ver=v;$("vLive").setAttribute("aria-pressed",v==="live");$("vRec").setAttribute("aria-pressed",v==="rec");try{localStorage.setItem(KEY+".ver",v)}catch(e){}renderPlan()};
 $("vLive").onclick=()=>setVer("live");$("vRec").onclick=()=>setVer("rec");
 setVer(ver);
+// Resume: if the iPad closes the app mid-session, reopen right where the session is.
+function saveRun(){try{localStorage.setItem(KEY+".run",JSON.stringify({runStart,shift,pausedAt,pausedTotal,ver,at:Date.now()}))}catch(e){}}
+function clearRun(){try{localStorage.removeItem(KEY+".run")}catch(e){}}
+(()=>{let sv=null;try{sv=JSON.parse(localStorage.getItem(KEY+".run")||"null")}catch(e){}
+  if(!sv||Date.now()-sv.at>4*3600e3){clearRun();return}
+  const c=((sv.pausedAt??Date.now())-sv.runStart-sv.pausedTotal)/1000+T0+sv.shift;
+  if(c>=TEND){clearRun();return}
+  if(sv.ver&&sv.ver!==ver)setVer(sv.ver);
+  start();runStart=sv.runStart;shift=sv.shift;pausedAt=sv.pausedAt;pausedTotal=sv.pausedTotal;
+  $("pause").textContent=pausedAt?"Resume":"Pause";snap=true;tick();})();
 </script>
 
 <script>
