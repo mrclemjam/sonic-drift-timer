@@ -220,7 +220,7 @@ function layout(){
 function yAt(c){
   let lo=0,hi=anchors.length-1;if(c<=anchors[0].t)return anchors[0].y-(anchors[0].t-c)*pps;
   while(lo<hi){const m=(lo+hi+1)>>1;if(anchors[m].t<=c)lo=m;else hi=m-1}
-  const a=anchors[lo],b=anchors[lo+1];let y=a.y+(c-a.t)*pps;if(b)y=Math.min(y,b.y);return y;
+  const a=anchors[lo],b=anchors[lo+1];if(b&&b.t>a.t)return a.y+(c-a.t)/(b.t-a.t)*(b.y-a.y);return a.y+(c-a.t)*pps;
 }
 function secAt(c){const s=S();let i=0;for(let k=0;k<s.length;k++)if(c>=s[k].start)i=k;return i}
 function tick(){
