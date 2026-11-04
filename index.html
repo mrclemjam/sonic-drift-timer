@@ -316,15 +316,15 @@ window.addEventListener("resize",()=>{if(running){layout();tick()}});
 const setVer=v=>{ver=v;$("vLive").setAttribute("aria-pressed",v==="live");$("vRec").setAttribute("aria-pressed",v==="rec");try{localStorage.setItem(KEY+".ver",v)}catch(e){}renderPlan()};
 $("vLive").onclick=()=>setVer("live");$("vRec").onclick=()=>setVer("rec");
 setVer(ver);
-// Resume: if the iPad closes the app mid-session, reopen right where the session is.
+// Resume: if the iPad closes the app mid-session, reopen paused at the line where it closed.
 function saveRun(){try{localStorage.setItem(KEY+".run",JSON.stringify({runStart,shift,pausedAt,pausedTotal,ver,at:Date.now()}))}catch(e){}}
 function clearRun(){try{localStorage.removeItem(KEY+".run")}catch(e){}}
 (()=>{let sv=null;try{sv=JSON.parse(localStorage.getItem(KEY+".run")||"null")}catch(e){}
   if(!sv||Date.now()-sv.at>4*3600e3){clearRun();return}
-  const c=((sv.pausedAt??Date.now())-sv.runStart-sv.pausedTotal)/1000+T0+sv.shift;
+  const c=((sv.pausedAt??sv.at)-sv.runStart-sv.pausedTotal)/1000+T0+sv.shift;
   if(c>=TEND){clearRun();return}
   if(sv.ver&&sv.ver!==ver)setVer(sv.ver);
-  start();runStart=sv.runStart;shift=sv.shift;pausedAt=sv.pausedAt;pausedTotal=sv.pausedTotal;
+  start();runStart=sv.runStart;shift=sv.shift;pausedAt=sv.pausedAt??sv.at;pausedTotal=sv.pausedTotal;   // come back paused at the moment it closed, so no lines are skipped
   $("pause").textContent=pausedAt?"Resume":"Pause";snap=true;tick();})();
 </script>
 
