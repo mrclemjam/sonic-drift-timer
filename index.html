@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sonic Drift</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sonic Drift">
+<meta name="theme-color" content="#0b0907">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}body{margin:0}</style>
+</head>
+<body>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,500&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-screen performer view. Clocks on top; the whole script laid out as a timeline where height equals time, scrolling at one steady speed; thumb controls at the bottom. One dark look for a darkened room. */
+:root{
+  --bg:#0b0907; --panel:#15110d; --line:#2a221a;
+  --fg:#d9b98a; --dim:#8a7558; --faint:#4d4134;
+  --over:#d4574a; --cue:#f0913a;
+  --tide:rgba(217,185,138,.14);
+  --serif:"Literata",Georgia,"Times New Roman",serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%;overscroll-behavior:none}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--serif);margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));}
+body.dim{filter:brightness(.55)}
+.wrap{max-width:640px;margin:0 auto;height:100%;display:flex;flex-direction:column;padding-block:8px;box-sizing:border-box}
+button{font:inherit;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;cursor:pointer}
+button:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.label{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+
+#plan h1{font-weight:500;font-size:26px;margin:8px 0 4px;text-wrap:balance}
+#plan p.sub{color:var(--dim);margin:0 0 16px;font-size:14px;line-height:1.5}
+.vers{display:flex;gap:6px;margin:0 0 12px}
+.vers button{flex:1;padding:9px 10px}
+.vers button[aria-pressed=true]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.rows{display:flex;flex-direction:column;gap:6px;overflow:auto;flex:1;min-height:0}
+.row{display:grid;grid-template-columns:4.6em 1fr;gap:12px;align-items:baseline;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.row{cursor:pointer}
+.row:hover,.row:focus-visible{border-color:var(--dim);outline:none}
+.row .go2{color:var(--dim);font-size:12px;justify-self:end;grid-column:2}
+.row .when{font-family:var(--mono);font-size:13px;color:var(--dim)}
+.row .name{min-width:0;font-size:15px}
+.row .name small{display:block;color:var(--dim);font-size:12px;margin-top:2px}
+.planfoot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:14px;flex-wrap:wrap}
+.total{font-size:15px}
+.total b{font-size:22px;font-weight:500}
+.go{font-size:18px;padding:14px 28px;background:var(--fg);color:var(--bg);border-color:var(--fg)}
+
+#run{display:flex;flex-direction:column;height:100%;gap:6px}
+.timing{display:flex;flex-direction:column;gap:8px}
+.tl{display:flex;flex-direction:column;gap:4px}
+.tr{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.tlabel{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
+.tsmall{font-size:13px;color:var(--dim)}
+.tright{display:flex;align-items:baseline;gap:8px;flex:none}
+.nm{font-size:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.drift{font-size:12px;color:var(--dim)}
+.drift.long{color:var(--over)}
+.clock{font-size:24px;line-height:1;font-weight:500;flex:none}
+.bar{display:flex;gap:3px;height:5px;padding:8px 0;margin:-8px 0;cursor:pointer;box-sizing:content-box}
+.seg{flex:1 1 0;background:var(--line);border-radius:2px;overflow:hidden;min-width:3px}
+.seg.cur{background:var(--faint)}
+.seg i{display:block;height:100%;background:var(--fg);width:0}
+.sbar{height:5px;cursor:pointer;padding:8px 0;margin:-8px 0;background-clip:content-box;box-sizing:content-box;background:var(--line);border-radius:2px;overflow:hidden}
+.sbar i{display:block;height:100%;background:var(--fg);width:0}
+
+:root{--fs:20px}
+.body{overscroll-behavior:contain;flex:1;min-height:0;overflow:auto;padding:0 14px;-webkit-overflow-scrolling:touch;position:relative}
+.track{position:relative}
+.track > *{position:absolute;left:0;right:0;margin:0}
+.tide{top:0;height:0;pointer-events:none;background:linear-gradient(to bottom,transparent 0,var(--tide) 60px,var(--tide) 100%);left:-14px!important;right:-14px!important}
+.tide::before,.tide::after{content:"";position:absolute;bottom:-1px;width:9px;height:2px;border-radius:1px;background:var(--cue)}
+.tide::before{left:0}
+.tide::after{right:0}
+.s{font-size:var(--fs);line-height:1.45}
+.c,.h3{font-family:var(--mono);font-size:calc(var(--fs)*.68);line-height:1.4;color:var(--cue);border-left:2px solid var(--cue);padding-left:8px}
+.h3{color:var(--dim);border:0;padding:0;letter-spacing:.12em;text-transform:uppercase;font-size:calc(var(--fs)*.55)}
+.sechead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;text-align:left;background:none;border:0;border-top:1px solid var(--faint);border-radius:0;padding:10px 0 0;font-family:var(--mono);font-size:calc(var(--fs)*.62);letter-spacing:.12em;text-transform:uppercase;color:var(--fg)}
+.sechead .t{color:var(--dim);letter-spacing:0;flex:none}
+.sechead small{display:block;letter-spacing:0;text-transform:none;color:var(--dim);font-size:.9em;margin-top:2px}
+.sechead.cur{color:var(--cue)}
+.endmark{font-family:var(--mono);font-size:calc(var(--fs)*.62);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);border-top:1px solid var(--faint);padding-top:10px}
+.cuesonly .s{visibility:hidden}
+.track [data-t]{cursor:pointer}
+.tip{position:fixed;z-index:9;pointer-events:none;transform:translate(-50%,-100%);background:var(--fg);color:var(--bg);font-family:var(--mono);font-size:12px;line-height:1.3;padding:5px 8px;border-radius:6px;white-space:nowrap}
+.tip small{display:block;opacity:.75}
+
+.ctrls{display:grid;grid-template-columns:1fr 1.4fr .75fr .75fr 1.4fr 1fr auto;gap:5px}
+.ctrls button{padding:10px 6px;font-size:14px}
+.ctrls button[aria-pressed=true]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.ctrls #prev,.ctrls #next{font-size:22px;line-height:1;padding:7px 6px}
+.ctrls #viewBtn,.ctrls #dimBtn{font-size:12px;padding:10px 2px}
+.gear{display:flex;align-items:center;justify-content:center}
+
+#settings{display:flex;flex-direction:column;gap:18px;height:100%}
+#settings h2{font-weight:500;font-size:22px;margin:4px 0 0}
+.sizer{display:flex;align-items:center;gap:12px}
+.sizer button{font-size:20px;padding:8px 18px;font-family:var(--mono)}
+.sizer span{min-width:3.5em;text-align:center;font-size:16px}
+.preview{flex:1;min-height:0;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:12px}
+.setfoot{display:flex;gap:8px;flex-wrap:wrap}
+.setfoot button{padding:12px 16px;font-size:15px}
+.setfoot .done-btn{background:var(--fg);color:var(--bg);border-color:var(--fg);flex:1}
+.done{text-align:center;padding:40px 0}
+</style>
+
+<div class="wrap">
+  <section id="plan">
+    <div class="label">Sonic Drift Session · Version 3 test</div>
+    <h1>Tonight's session</h1>
+    <p class="sub">Pick Live or Recording, then Start. The script scrolls at one steady speed: each line arrives at the ticks when it's time to say it, and blank screen means silence. Tap a section below to start right there. While running, tap any line, section title or spot on the progress bars to jump; the bars show the time under your finger. Handy for lining it up with a recording.</p>
+    <div class="vers" role="group" aria-label="Script version"><button id="vLive" aria-pressed="true">Live</button><button id="vRec" aria-pressed="false">Recording</button></div>
+    <div class="rows" id="rows"></div>
+    <div class="planfoot">
+      <div class="total">The hour <b class="mono">60</b> min, plus a 1 min welcome</div>
+      <button class="go" id="start">Start session</button>
+    </div>
+  </section>
+
+  <section id="run" hidden>
+    <header class="timing">
+      <div class="tl">
+        <div class="tr"><span class="tlabel mono" id="sessLabel">Session</span><span class="mono tsmall" id="sessClock">0:00 / 60:00</span></div>
+        <div class="bar" id="bar" aria-hidden="true"></div>
+      </div>
+      <div class="tr"><span class="nm" id="secName"></span><span class="tright"><span class="mono drift" id="drift"></span><span class="clock mono" id="clock">0:00</span></span></div>
+      <div class="sbar" aria-hidden="true"><i id="sbarI"></i></div>
+    </header>
+    <div class="body" id="body"><div class="track" id="track"></div></div>
+    <div class="ctrls">
+      <button id="prev" aria-label="Jump to previous section">‹</button>
+      <button id="pause">Pause</button>
+      <button id="viewBtn">Cues</button>
+      <button id="dimBtn" aria-pressed="false">Dim</button>
+      <button id="followBtn" aria-pressed="true">Follow</button>
+      <button id="next" aria-label="Jump to next section">›</button>
+      <button id="setBtn" class="gear" aria-label="Settings"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L14.9 3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.4 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.9h4l.4-2.9a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM12.9 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
+    </div>
+  </section>
+
+  <section id="settings" hidden>
+    <div><div class="label">Settings</div><h2>Text size</h2></div>
+    <div class="sizer">
+      <button id="fsDown" aria-label="Smaller text">A−</button>
+      <span class="mono" id="fsVal">20px</span>
+      <button id="fsUp" aria-label="Larger text">A+</button>
+    </div>
+    <p class="label" style="text-transform:none;letter-spacing:0;font-size:13px">Bigger text also makes the scroll move a little faster, so each line still arrives on time.</p>
+    <div class="preview" id="preview"><div class="s">Feel the whole back of the body resting on the ground.</div><div class="c">Deep, low, slow strikes. Let the floor carry the sound.</div><div class="s">Feel how completely you are held.</div></div>
+    <div class="setfoot">
+      <button id="endBtn">End session</button>
+      <button id="setDone" class="done-btn">Back to session</button>
+    </div>
+  </section>
+</div>
+
+<script>
+// Timed script: every spoken line (k:"s"), cue (k:"c") and sub-heading (k:"h3") has a clock time in seconds from the start of the hour.
+// Times come from Mark's own recorded delivery. Height on screen equals time, so the scroll runs at one steady speed.
+const TIMELINE=[{"id": "welcome", "name": "Welcome", "gong": "Before the hour · counts down to 0:00", "start": -60, "end": 0, "items": [{"t": -56.72, "k": "s", "x": "Welcome to Sonic Drift."}, {"t": -53.14, "k": "s", "x": "My name is Mark, and I’ll be your guide today."}, {"t": -48.38, "k": "s", "x": "For the next hour, we’ll rest together in a practice inspired by yoga nidra, sometimes called yogic sleep."}, {"t": -39.09, "k": "s", "x": "It’s a guided journey of deep rest, carried by my voice and the sound of the gong."}, {"t": -32.29, "k": "s", "x": "You’ll simply settle into your comfortable meditation space, lying down or seated, and listen."}, {"t": -24.93, "k": "s", "x": "If your mind drifts, that’s okay."}, {"t": -21.06, "k": "s", "x": "Let the sound bring you back."}, {"t": -17.97, "k": "s", "x": "So settle in, and let’s get started."}]}, {"id": "settle", "name": "Settling", "gong": "One opening strike; 2 minutes for the gongs to begin", "start": 0, "end": 219.12815419501086, "items": [{"t": 1, "k": "c", "x": "One single, soft gong strike to mark the start. Let it ring."}, {"t": 8, "k": "s", "x": "Allow yourself to arrive here, fully supported."}, {"t": 15.62, "k": "s", "x": "Here, together, in this room."}, {"t": 25.37, "k": "s", "x": "Notice the earth beneath you."}, {"t": 30.69, "k": "s", "x": "Allow the ground to take your full weight."}, {"t": 36.74, "k": "s", "x": "Sink into it."}, {"t": 41.01, "k": "s", "x": "Let the body soften."}, {"t": 49.52, "k": "s", "x": "There is nothing you need to do."}, {"t": 54.54, "k": "s", "x": "Nowhere to go."}, {"t": 59.06, "k": "s", "x": "Nothing to remember."}, {"t": 63.53, "k": "s", "x": "Your only task is to listen, and to let the sound carry you."}, {"t": 75.07, "k": "s", "x": "See if you can keep one small spark of awareness, like a single star in the vast night sky."}, {"t": 83.71, "k": "c", "x": "About 1 minute for the gongs to begin: soft, sparse strikes, letting each one decay fully before the next."}, {"t": 142.71, "k": "s", "x": "Now let your attention widen to the sounds around you."}, {"t": 149.18, "k": "s", "x": "Sounds outside this room."}, {"t": 157.82, "k": "s", "x": "Sounds inside this room."}, {"t": 166.75, "k": "s", "x": "The sound of the gong, rising and fading."}, {"t": 177.02, "k": "s", "x": "And the sound of your own breath."}, {"t": 190.74, "k": "s", "x": "Say to yourself, silently:"}, {"t": 194.18, "k": "s", "x": "I am awake."}, {"t": 198.59, "k": "s", "x": "I am resting."}, {"t": 203.05, "k": "s", "x": "I am listening."}, {"t": 206.45, "k": "c", "x": "Let the gong settle into a low, continuous bed of sound."}]}, {"id": "intent", "name": "Intention", "gong": "Near silence, then one clear strike", "start": 219.12815419501086, "end": 337.30445804988574, "items": [{"t": 221.13, "k": "c", "x": "Gong drops to near silence."}, {"t": 227.13, "k": "s", "x": "Now allow an intention to come to you."}, {"t": 233.42, "k": "s", "x": "Something heartfelt, just a few words."}, {"t": 240.18, "k": "s", "x": "Make it in the present tense, as if it is already true and living inside you."}, {"t": 249.65, "k": "s", "x": "It might begin with…"}, {"t": 254.5, "k": "s", "x": "I am…"}, {"t": 258.33, "k": "s", "x": "I choose…"}, {"t": 262.6, "k": "s", "x": "I allow…"}, {"t": 266.82, "k": "s", "x": "Whatever comes to you is right."}, {"t": 272.4, "k": "s", "x": "And if nothing comes, let it simply be: I rest."}, {"t": 280.45, "k": "s", "x": "Let it sound within you, three times."}, {"t": 312.3, "k": "c", "x": "One single, clear gong strike. Let it ring out completely."}]}, {"id": "scan", "name": "Body scan", "gong": "Low bed; one soft strike at each ✦ new region, paced by the decay", "start": 337.30445804988574, "end": 1642.03479818594, "items": [{"t": 339.3, "k": "c", "x": "Low gong bed the whole way, barely there. One soft strike at each ✦ as you move to a new region. Pace by the gong: name each part as the sound blooms, move on as it fades. Start around 8–9 seconds per part and let it slow as you go, toward 11–12 on the face. The silence is the practice."}, {"t": 347.3, "k": "s", "x": "Now we’ll travel through the body."}, {"t": 352.23, "k": "s", "x": "As I name each place, one by one, mentally touch it with its name, light as a whisper."}, {"t": 362.15, "k": "s", "x": "Then notice what answers."}, {"t": 366.86, "k": "s", "x": "A tingle."}, {"t": 370.58, "k": "s", "x": "Warmth."}, {"t": 374.31, "k": "s", "x": "A pulse."}, {"t": 377.81, "k": "s", "x": "A little fizz, or a wave of chills."}, {"t": 384.47, "k": "s", "x": "Or nothing at all."}, {"t": 394.36, "k": "s", "x": "Sometimes, when attention arrives, the body echoes back."}, {"t": 401.77, "k": "s", "x": "That’s your nervous system saying hello."}, {"t": 407.06, "k": "s", "x": "Let it come, and let it go."}, {"t": 411.91, "k": "s", "x": "Trust what you notice, even if it’s faint, or a little strange."}, {"t": 426.91, "k": "h3", "x": "Right side"}, {"t": 429.41, "k": "s", "x": "Bring your awareness to your right hand."}, {"t": 437.91, "k": "s", "x": "The right thumb."}, {"t": 446.41, "k": "s", "x": "Index finger."}, {"t": 454.91, "k": "s", "x": "Middle finger."}, {"t": 463.41, "k": "s", "x": "Ring finger."}, {"t": 471.91, "k": "s", "x": "Little finger."}, {"t": 480.41, "k": "s", "x": "The right palm."}, {"t": 488.91, "k": "s", "x": "The back of the hand."}, {"t": 497.41, "k": "s", "x": "Your whole right hand."}, {"t": 505.91, "k": "s", "x": "Just noticing what’s there."}, {"t": 518.41, "k": "s", "x": "Your right wrist."}, {"t": 526.91, "k": "s", "x": "Forearm."}, {"t": 535.41, "k": "s", "x": "Elbow."}, {"t": 543.91, "k": "s", "x": "The right upper arm."}, {"t": 552.41, "k": "s", "x": "Shoulder."}, {"t": 560.91, "k": "s", "x": "Shoulder blade."}, {"t": 569.41, "k": "s", "x": "The right side of the waist."}, {"t": 577.91, "k": "s", "x": "Hip."}, {"t": 586.41, "k": "s", "x": "Your right thigh."}, {"t": 594.91, "k": "s", "x": "Knee."}, {"t": 603.41, "k": "s", "x": "Shin."}, {"t": 611.91, "k": "s", "x": "The right calf."}, {"t": 620.41, "k": "s", "x": "Ankle."}, {"t": 628.91, "k": "s", "x": "The sole of the right foot."}, {"t": 637.41, "k": "s", "x": "The right big toe."}, {"t": 645.91, "k": "s", "x": "Second toe."}, {"t": 654.41, "k": "s", "x": "Third toe."}, {"t": 662.91, "k": "s", "x": "Fourth toe."}, {"t": 671.41, "k": "s", "x": "Little toe."}, {"t": 683.91, "k": "s", "x": "The whole right side of your body."}, {"t": 699.91, "k": "h3", "x": "Left side"}, {"t": 702.41, "k": "s", "x": "Now bring your awareness to your left hand."}, {"t": 711.91, "k": "s", "x": "The left thumb."}, {"t": 721.41, "k": "s", "x": "Index finger."}, {"t": 730.91, "k": "s", "x": "Middle finger."}, {"t": 740.41, "k": "s", "x": "Ring finger."}, {"t": 749.91, "k": "s", "x": "Little finger."}, {"t": 759.41, "k": "s", "x": "The left palm."}, {"t": 768.91, "k": "s", "x": "The back of the hand."}, {"t": 778.41, "k": "s", "x": "Your whole left hand."}, {"t": 787.91, "k": "s", "x": "Just noticing what’s there."}, {"t": 801.41, "k": "s", "x": "Your left wrist."}, {"t": 810.91, "k": "s", "x": "Forearm."}, {"t": 820.41, "k": "s", "x": "Elbow."}, {"t": 829.91, "k": "s", "x": "The left upper arm."}, {"t": 839.41, "k": "s", "x": "Shoulder."}, {"t": 848.91, "k": "s", "x": "Shoulder blade."}, {"t": 858.41, "k": "s", "x": "The left side of the waist."}, {"t": 867.91, "k": "s", "x": "Hip."}, {"t": 877.41, "k": "s", "x": "Your left thigh."}, {"t": 886.91, "k": "s", "x": "Knee."}, {"t": 896.41, "k": "s", "x": "Shin."}, {"t": 905.91, "k": "s", "x": "The left calf."}, {"t": 915.41, "k": "s", "x": "Ankle."}, {"t": 924.91, "k": "s", "x": "The sole of the left foot."}, {"t": 934.41, "k": "s", "x": "The left big toe."}, {"t": 943.91, "k": "s", "x": "Second toe."}, {"t": 953.41, "k": "s", "x": "Third toe."}, {"t": 962.91, "k": "s", "x": "Fourth toe."}, {"t": 972.41, "k": "s", "x": "Little toe."}, {"t": 985.91, "k": "s", "x": "The whole left side of your body."}, {"t": 999.41, "k": "s", "x": "Both sides of your body, together."}, {"t": 1012.91, "k": "s", "x": "Touch them with your intention."}, {"t": 1029.41, "k": "h3", "x": "Back"}, {"t": 1031.91, "k": "s", "x": "Your heels."}, {"t": 1041.91, "k": "s", "x": "The backs of the legs."}, {"t": 1051.91, "k": "s", "x": "The hips, heavy on the floor."}, {"t": 1061.91, "k": "s", "x": "The lower back."}, {"t": 1071.91, "k": "s", "x": "The whole spine."}, {"t": 1081.91, "k": "s", "x": "Both shoulder blades."}, {"t": 1091.91, "k": "s", "x": "The back of the head."}, {"t": 1106.91, "k": "h3", "x": "Face"}, {"t": 1109.41, "k": "s", "x": "The crown of your head."}, {"t": 1120.91, "k": "s", "x": "The forehead."}, {"t": 1132.41, "k": "s", "x": "Let it soften."}, {"t": 1143.91, "k": "s", "x": "The right eyebrow."}, {"t": 1155.41, "k": "s", "x": "The left eyebrow."}, {"t": 1166.91, "k": "s", "x": "The space between the eyebrows."}, {"t": 1182.41, "k": "s", "x": "The right eye."}, {"t": 1193.91, "k": "s", "x": "The eyeball itself, resting in its socket."}, {"t": 1205.41, "k": "s", "x": "The left eye."}, {"t": 1216.91, "k": "s", "x": "The eyeball itself, resting in its socket."}, {"t": 1228.41, "k": "s", "x": "Both eyes, together."}, {"t": 1243.91, "k": "s", "x": "The right cheek."}, {"t": 1255.41, "k": "s", "x": "The left cheek."}, {"t": 1266.91, "k": "s", "x": "The right nostril."}, {"t": 1278.41, "k": "s", "x": "The left nostril."}, {"t": 1289.91, "k": "s", "x": "The breath, moving through both nostrils at once."}, {"t": 1305.41, "k": "s", "x": "The upper lip."}, {"t": 1316.91, "k": "s", "x": "The lower lip."}, {"t": 1328.41, "k": "s", "x": "Both lips, together."}, {"t": 1339.91, "k": "s", "x": "The jaw."}, {"t": 1351.41, "k": "s", "x": "The right ear."}, {"t": 1362.91, "k": "s", "x": "The left ear."}, {"t": 1374.41, "k": "s", "x": "Both ears, listening."}, {"t": 1391.91, "k": "h3", "x": "Front, sinking into the back"}, {"t": 1394.41, "k": "s", "x": "Your throat."}, {"t": 1405.41, "k": "s", "x": "The back of the neck."}, {"t": 1416.41, "k": "s", "x": "The right side of the chest, sinking into the upper back."}, {"t": 1427.41, "k": "s", "x": "The left side of the chest, sinking into the upper back."}, {"t": 1442.41, "k": "s", "x": "The belly, rising and falling."}, {"t": 1453.41, "k": "s", "x": "The right side of the belly, sinking into the low back."}, {"t": 1464.41, "k": "s", "x": "The left side of the belly, sinking into the low back."}, {"t": 1478.91, "k": "h3", "x": "Whole body"}, {"t": 1481.41, "k": "s", "x": "The whole front of your body, from the toes to the crown, softening into the back."}, {"t": 1496.41, "k": "s", "x": "The whole back of your body, from the heels to the crown, resting on the earth."}, {"t": 1511.41, "k": "s", "x": "Your whole body, all at once."}, {"t": 1525.68, "k": "h3", "x": "The heart"}, {"t": 1528.18, "k": "s", "x": "And now, let it all gather at your heart."}, {"t": 1534.38, "k": "s", "x": "Feel its pulse."}, {"t": 1538.35, "k": "s", "x": "Its own quiet rhythm."}, {"t": 1541.2, "k": "c", "x": "Let the bed swell a little. Stay here 30–40 seconds."}, {"t": 1575.0, "k": "s", "x": "The heart, where your intention lives."}, {"t": 1581.11, "k": "s", "x": "Touch it with your intention."}, {"t": 1597.03, "k": "c", "x": "Threshold: let the scan’s last strike ring out to silence, then bring in the deep earth tones. 30–60 seconds of gong alone."}]}, {"id": "earth", "name": "Between Earth and Sky", "gong": "Low tones = Earth · high shimmer = Sky · both together in the heart", "start": 1642.03479818594, "end": 2332.03479818594, "items": [{"t": 1644.03, "k": "c", "x": "Gong roles: your lowest, deepest tones are Earth. A high shimmer or a smaller gong is Sky. When they meet in the heart, play both together."}, {"t": 1646.03, "k": "c", "x": "Deep, low, slow strikes. Let the floor carry the sound."}, {"t": 1652.92, "k": "h3", "x": "Held"}, {"t": 1655.42, "k": "s", "x": "Now let the body rest as one."}, {"t": 1665.93, "k": "s", "x": "Feel the whole back of the body resting on the ground."}, {"t": 1673.14, "k": "s", "x": "Feel how completely you are held."}, {"t": 1683.46, "k": "s", "x": "The earth has held you like this every moment of your life."}, {"t": 1690.52, "k": "s", "x": "It has never once let go."}, {"t": 1693.61, "k": "c", "x": "Soft, low gong tone."}, {"t": 1703.29, "k": "h3", "x": "Rooted"}, {"t": 1705.79, "k": "s", "x": "From the center of the heart, imagine roots."}, {"t": 1711.64, "k": "s", "x": "Slowly reaching down through the floor."}, {"t": 1717.66, "k": "s", "x": "Through the soil."}, {"t": 1721.98, "k": "s", "x": "Through the stone."}, {"t": 1726.65, "k": "s", "x": "Down into the deep, steady heart of the earth."}, {"t": 1744.02, "k": "s", "x": "Feel how deep your roots go."}, {"t": 1749.64, "k": "s", "x": "You belong here."}, {"t": 1752.21, "k": "c", "x": "Bring in the high shimmer above the low tones."}, {"t": 1761.89, "k": "h3", "x": "Open to the sky"}, {"t": 1764.39, "k": "s", "x": "Now notice how you are lying: stretched out along the surface of the earth, your heart like the horizon itself."}, {"t": 1775.18, "k": "s", "x": "The ground beneath your back."}, {"t": 1780.34, "k": "s", "x": "The open sky above you."}, {"t": 1790.57, "k": "s", "x": "Bring awareness to the front of the body."}, {"t": 1801.42, "k": "s", "x": "High above, the air grows thinner and thinner, until the blue gives way to the quiet dark beyond."}, {"t": 1813.58, "k": "s", "x": "Molecules dance at the edge."}, {"t": 1824.1, "k": "s", "x": "Feel it drawing gently at the surface of your skin, like the moon lifting the tide."}, {"t": 1838.61, "k": "s", "x": "Heavy at the core."}, {"t": 1843.55, "k": "s", "x": "Softer toward the surface."}, {"t": 1849.22, "k": "s", "x": "At the very edge of you, thinner and thinner."}, {"t": 1856.27, "k": "s", "x": "Your own molecules, dancing in and out of space."}, {"t": 1868.48, "k": "s", "x": "And at the center of it all, the heart."}, {"t": 1874.36, "k": "s", "x": "Steady."}, {"t": 1878.4, "k": "s", "x": "Solid."}, {"t": 1882.43, "k": "s", "x": "Whole."}, {"t": 1896.56, "k": "s", "x": "From that same heart, a fine, bright thread rises in tendrils."}, {"t": 1905.74, "k": "s", "x": "Curling upward, out into the night, where the stars are."}, {"t": 1923.57, "k": "s", "x": "Feel how vast the universe above you is."}, {"t": 1929.85, "k": "s", "x": "Every star, every galaxy."}, {"t": 1936.42, "k": "s", "x": "All the quiet darkness between them."}, {"t": 1946.48, "k": "s", "x": "Your thread, winding through it all."}, {"t": 1952.65, "k": "s", "x": "Finer and finer."}, {"t": 1957.52, "k": "s", "x": "Touching the farthest light."}, {"t": 1967.6, "k": "s", "x": "And that light, finding its way back to you."}, {"t": 1972.04, "k": "c", "x": "Play earth and sky tones together, warm and balanced."}, {"t": 1981.72, "k": "h3", "x": "Meeting in the heart"}, {"t": 1984.22, "k": "s", "x": "Feel the steady energy of the earth rising."}, {"t": 1991.05, "k": "s", "x": "Up from the deep earth."}, {"t": 1996.1, "k": "s", "x": "Up through the roots."}, {"t": 2000.7, "k": "s", "x": "Up to the heart."}, {"t": 2015.29, "k": "s", "x": "And feel the wide, bright energy of the sky flowing down."}, {"t": 2022.88, "k": "s", "x": "Down from the stars."}, {"t": 2027.95, "k": "s", "x": "Down along the winding thread."}, {"t": 2033.48, "k": "s", "x": "Down, deep into the heart."}, {"t": 2049.85, "k": "s", "x": "Here they meet."}, {"t": 2059.57, "k": "s", "x": "And you are both."}, {"t": 2064.47, "k": "s", "x": "Solid as the ground."}, {"t": 2069.59, "k": "s", "x": "Open as the sky."}, {"t": 2073.3, "k": "c", "x": "Let the gong swell slowly and fully, both tones together."}, {"t": 2082.98, "k": "h3", "x": "Spreading from the heart"}, {"t": 2085.48, "k": "s", "x": "With each exhale, let the warmth of your heart expand, a little further."}, {"t": 2099.23, "k": "s", "x": "Feel it fill the chest."}, {"t": 2109.1, "k": "s", "x": "The whole body."}, {"t": 2118.57, "k": "s", "x": "This room, and everyone resting here."}, {"t": 2134.71, "k": "s", "x": "Out over the land."}, {"t": 2140.1, "k": "s", "x": "The trees, the hills, the ancient sea."}, {"t": 2148.39, "k": "s", "x": "The whole living earth, held in your heart."}, {"t": 2153.01, "k": "c", "x": "1–2 minutes of soft, sustained gong, low and high together, then easing toward quiet."}, {"t": 2224.31, "k": "h3", "x": "Rest and return"}, {"t": 2226.81, "k": "s", "x": "Rest here, as wide as your heart has become."}, {"t": 2295.47, "k": "s", "x": "Now, like an echo, let your heart return."}, {"t": 2302.19, "k": "s", "x": "Back to this body, resting between earth and sky."}, {"t": 2310.23, "k": "s", "x": "The roots, still reaching down."}, {"t": 2316.28, "k": "s", "x": "The thread, still rising."}, {"t": 2321.89, "k": "s", "x": "The heart, at the center."}]}, {"id": "drift", "name": "Deep drift", "gong": "Full gong wave, almost no voice. Flex zone", "start": 2332.03479818594, "end": 3239.6986848072565, "items": [{"t": 2334.03, "k": "c", "x": "Keep the gong low as you speak."}, {"t": 2345.91, "k": "s", "x": "Now, allow the sound to carry us."}, {"t": 2352.69, "k": "s", "x": "The waves of the gong, moving through you."}, {"t": 2359.23, "k": "s", "x": "Washing over the body."}, {"t": 2369.52, "k": "s", "x": "You are here."}, {"t": 2374.2, "k": "s", "x": "Held."}, {"t": 2378.25, "k": "s", "x": "Safe."}, {"t": 2382.48, "k": "s", "x": "And that spark of awareness, still shining."}, {"t": 2390.12, "k": "c", "x": "Build a slow gong wave over about 13 minutes:"}, {"t": 2394.12, "k": "c", "x": "1. Start quiet and spacious, close to the bed you’ve been holding."}, {"t": 2521.48, "k": "c", "x": "2. Rise gradually toward a full, rich wash. Peak around 45:57–46:57, and hold the peak briefly."}, {"t": 2827.99, "k": "c", "x": "3. Ease back down slowly, just as you rose."}, {"t": 3129.86, "k": "c", "x": "4. By 52:09, be back to a soft, low shimmer."}, {"t": 3186.86, "k": "c", "x": "At 53:09, as the shimmer fades to near silence, very quietly:"}, {"t": 3189.86, "k": "s", "x": "Earth below."}, {"t": 3197.24, "k": "s", "x": "Sky above."}, {"t": 3202.21, "k": "s", "x": "Heart between."}, {"t": 3211.58, "k": "s", "x": "Breathe them in."}, {"t": 3216.62, "k": "s", "x": "And let go."}, {"t": 3218.9, "k": "c", "x": "Let the silence carry into Waking."}]}, {"id": "waking", "name": "Waking", "gong": "Near silence, then a high shimmer rising", "start": 3239.6986848072565, "end": 3420, "items": [{"t": 3241.7, "k": "c", "x": "1–2 minutes of near silence. Faint gong shimmer only."}, {"t": 3324.7, "k": "c", "x": "Let a high, soft shimmer rise slowly."}, {"t": 3329.7, "k": "s", "x": "Somewhere in you, that small spark of awareness."}, {"t": 3337.03, "k": "s", "x": "Still shining."}, {"t": 3346.78, "k": "s", "x": "Let it grow a little brighter."}, {"t": 3357.56, "k": "s", "x": "Let it spread through the body."}, {"t": 3362.93, "k": "s", "x": "Into the chest."}, {"t": 3367.6, "k": "s", "x": "The arms. The legs."}, {"t": 3372.84, "k": "s", "x": "All the way out to the fingertips and toes."}]}, {"id": "ret", "name": "Returning to intention", "gong": "One clear strike, as before", "start": 3420, "end": 3600, "items": [{"t": 3460, "k": "s", "x": "Let your intention return to you."}, {"t": 3468.53, "k": "s", "x": "The same words."}, {"t": 3475.73, "k": "s", "x": "Let them sound within you, three times."}, {"t": 3480.7, "k": "c", "x": "One single, clear gong strike, matching the one from Intention."}, {"t": 3514.5, "k": "s", "x": "Let it ring all the way through."}, {"t": 3522.65, "k": "s", "x": "Your intention is rooted now."}, {"t": 3532.2, "k": "s", "x": "You can let it go."}, {"t": 3539.5, "k": "s", "x": "It knows how to grow."}]}, {"id": "return", "name": "Gentle return", "gong": "After the hour · fade to silence, then into tea and the share", "start": 3600, "end": 3960, "items": [{"t": 3602, "k": "c", "x": "Let the gong fade slowly to complete silence over the first minute. No more strikes."}, {"t": 3613.86, "k": "s", "x": "And something in us is waking."}, {"t": 3619.42, "k": "s", "x": "Let’s begin to come back, moving slowly, for ourselves and for each other."}, {"t": 3629.91, "k": "s", "x": "There’s no hurry."}, {"t": 3634.34, "k": "s", "x": "We have all the time we need."}, {"t": 3644.95, "k": "s", "x": "Begin to notice the breath again."}, {"t": 3660.83, "k": "s", "x": "A little deeper now."}, {"t": 3665.37, "k": "s", "x": "A little fuller."}, {"t": 3669.74, "k": "s", "x": "Inhale all the goodness the earth and the universe have to offer you."}, {"t": 3677.71, "k": "s", "x": "Exhale, letting go."}, {"t": 3687.94, "k": "s", "x": "Once more."}, {"t": 3697.05, "k": "s", "x": "Gently, let your awareness return to the body, resting on the floor."}, {"t": 3706.1, "k": "s", "x": "The weight of it."}, {"t": 3710.79, "k": "s", "x": "The places where it touches the ground."}, {"t": 3721.24, "k": "s", "x": "Notice the sounds of this room."}, {"t": 3726.61, "k": "s", "x": "The others around you, returning too."}, {"t": 3733.04, "k": "s", "x": "Sounds from beyond these walls."}, {"t": 3743.74, "k": "s", "x": "Here, now, on this earth."}, {"t": 3761.94, "k": "s", "x": "When you’re ready, let a small movement come back."}, {"t": 3768.62, "k": "s", "x": "The fingers."}, {"t": 3773.27, "k": "s", "x": "The toes."}, {"t": 3782.41, "k": "s", "x": "Maybe a slow roll of the wrists and ankles."}, {"t": 3794.27, "k": "s", "x": "If it feels good, a long stretch, arms overhead, the whole body lengthening."}, {"t": 3815.81, "k": "s", "x": "Take your time."}, {"t": 3820.77, "k": "s", "x": "When it feels right, slowly roll onto your right side and rest there for a few breaths, curled up like you’re waking from a good sleep."}, {"t": 3844.25, "k": "s", "x": "We have been somewhere deep together."}, {"t": 3854.95, "k": "s", "x": "And when you’re ready, slowly, gently, press yourself up to sitting."}, {"t": 3864.61, "k": "s", "x": "Keep the eyes closed a little longer if you like."}, {"t": 3870.91, "k": "s", "x": "Let’s hold this stillness together, a few moments more."}, {"t": 3883.21, "k": "s", "x": "Say to yourself, silently:"}, {"t": 3885.86, "k": "s", "x": "I am awake."}, {"t": 3890.27, "k": "s", "x": "I am rested."}, {"t": 3895.35, "k": "s", "x": "I am here."}, {"t": 3905.45, "k": "s", "x": "And as you go, carry it with you."}, {"t": 3911.41, "k": "s", "x": "The earth beneath your feet."}, {"t": 3916.71, "k": "s", "x": "The sky above."}, {"t": 3922.42, "k": "s", "x": "And your heart, where they meet."}, {"t": 3927.92, "k": "c", "x": "Hand off to your closing."}]}];
+const REC_SWAPS=[["Here, together, in this room.", "Here, wherever you are."], ["Sounds outside this room.", "Sounds far away."], ["Sounds inside this room.", "Sounds close by."], ["The breath of everyone resting here.", "The quiet of the space around you."], ["This room, and everyone resting here.", "The people you love, near and far."], ["Let’s begin to come back, moving slowly, for ourselves and for each other.", "Let’s begin to come back, moving slowly and gently."], ["Gently, let your awareness return to the body, resting on the floor.", "Gently, let your awareness return to the body, resting where you are."], ["Notice the sounds of this room.", "Notice the sounds around you."], ["The others around you, returning too.", "The space you’re resting in."], ["Sounds from beyond these walls.", "Sounds from farther away."]];
+const REC_END="Let the gong ring out to silence. End of recording.";
+function toRec(it){
+  let x=it.x;REC_SWAPS.forEach(([p,q])=>{x=x.split(p).join(q)});
+  if(it.k==="c"&&/^Hand off/.test(x))x=REC_END;
+  return {...it,x};
+}
+const VERS={live:TIMELINE,rec:TIMELINE.map(s=>({...s,items:s.items.map(toRec).filter(Boolean)}))};
+const KEY="sonicDrift.v3test.v1";
+const T0=-60,TEND=TIMELINE[TIMELINE.length-1].end;
+let ver="live";
+try{if(localStorage.getItem(KEY+".ver")==="rec")ver="rec"}catch(e){}
+const $=id=>document.getElementById(id);
+const esc=t=>t.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const fmt=sec=>{const neg=sec<0;sec=Math.abs(Math.round(sec));const m=Math.floor(sec/60),s=sec%60;return (neg?"-":"")+m+":"+String(s).padStart(2,"0")};
+const S=()=>VERS[ver];
+
+function renderPlan(){
+  $("rows").innerHTML=S().map((s,i)=>`<div class="row" data-i="${i}" role="button" tabindex="0" title="Start here"><span class="when">${s.start<0?"before":fmt(s.start)}</span><span class="name">${esc(s.name)}<small>${esc(s.gong)}</small></span></div>`).join("");
+}
+
+// Run state. The script clock runs from -60 (the welcome) to the end of the hour; jumping shifts it.
+let runStart=0,shift=0,pausedAt=null,pausedTotal=0,follow=true,cuesOnly=false,timer=null,raf=0,wake=null,curI=-1,anchors=[],pps=20,running=false;
+const now=()=>Date.now();
+async function keepAwake(){try{if("wakeLock" in navigator){wake=await navigator.wakeLock.request("screen")}}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&running)keepAwake()});
+const clockS=()=>((pausedAt??now())-runStart-pausedTotal)/1000+T0+shift;
+
+// Layout: each item sits at (time × pixels-per-second); if text is taller than its time, the next item is nudged down.
+function layout(){
+  const tr=$("track"),secs=S();
+  pps=fs*0.7;
+  const els=[];
+  secs.forEach((s,i)=>{
+    els.push({t:s.start,html:`<button class="sechead" data-i="${i}" id="sec-${i}"><span>${esc(s.name)}<small>${esc(s.gong)}</small></span><span class="t">${s.start<0?"before 0:00":fmt(s.start)}</span></button>`});
+    s.items.forEach(it=>els.push({t:it.t,html:`<div class="${it.k}" data-t="${it.t}">${esc(it.x)}</div>`}));
+  });
+  els.push({t:TEND,html:`<div class="endmark" id="endmark">End of session · ${ver==="rec"?"end of recording":"into tea and the share"}</div>`});
+  tr.innerHTML='<div class="tide" id="tide" aria-hidden="true"></div>'+els.map(e=>e.html).join("");
+  const nodes=[...tr.children].slice(1);
+  anchors=[];let bottom=0;
+  nodes.forEach((n,k)=>{const t=els[k].t;let y=(t-T0)*pps;if(y<bottom+4)y=bottom+4;n.style.top=y+"px";anchors.push({t,y});bottom=y+n.offsetHeight});
+  tr.style.height=(bottom+$("body").clientHeight)+"px";
+  tr.querySelectorAll(".sechead").forEach(h=>h.onclick=()=>jumpTo(+h.dataset.i));
+  tr.querySelectorAll("[data-t]").forEach(n=>n.onclick=()=>seekTo(+n.dataset.t-1));
+  tr.classList.toggle("cuesonly",cuesOnly);
+  curI=-1;snap=true;
+}
+function yAt(c){
+  let lo=0,hi=anchors.length-1;if(c<=anchors[0].t)return anchors[0].y-(anchors[0].t-c)*pps;
+  while(lo<hi){const m=(lo+hi+1)>>1;if(anchors[m].t<=c)lo=m;else hi=m-1}
+  const a=anchors[lo],b=anchors[lo+1];let y=a.y+(c-a.t)*pps;if(b)y=Math.min(y,b.y);return y;
+}
+function secAt(c){const s=S();let i=0;for(let k=0;k<s.length;k++)if(c>=s[k].start)i=k;return i}
+function tick(){
+  const c=clockS(),s=S(),i=secAt(c),sec=s[i];
+  if(i!==curI){document.querySelectorAll(".sechead.cur").forEach(h=>h.classList.remove("cur"));const h=$("sec-"+i);if(h)h.classList.add("cur");$("secName").textContent=sec.name;curI=i}
+  $("clock").textContent=fmt(Math.max(0,sec.end-c));
+  $("sbarI").style.width=Math.min(100,Math.max(0,(c-sec.start)/(sec.end-sec.start)*100))+"%";
+  const main=s.filter(x=>x.start>=0);
+  $("sessLabel").textContent=c<0?`Before the start${pausedAt?" · paused":""}`:`Session · ${Math.max(1,main.filter(x=>c>=x.start).length)}/${main.length}${pausedAt?" · paused":""}`;
+  $("sessClock").textContent=c<0?`Starts in ${fmt(-c)}`:`${fmt(Math.min(c,TEND))} / ${fmt(TEND)}`;
+  const d=$("drift"),dv=Math.round(-shift);
+  d.className="mono drift"+(dv>=60?" long":"");
+  d.textContent=Math.abs(dv)>=60?(dv>0?`${Math.round(dv/60)}m long`:`${Math.round(-dv/60)}m ahead`):"";
+  [...$("bar").children].forEach((sg,k)=>{const x=main[k];const f=Math.min(1,Math.max(0,(c-x.start)/(x.end-x.start)));sg.classList.toggle("cur",x===sec);sg.firstChild.style.width=(f*100)+"%"});
+}
+// Every animation frame: move the shaded line and keep it at the ticks, a few lines above center.
+let sy=0,snap=false;
+function frame(){
+  if(running&&anchors.length){
+    const b=$("body"),y=yAt(Math.min(clockS(),TEND));
+    $("tide").style.height=Math.max(0,y)+"px";
+    if(follow){const target=Math.max(0,y-Math.max(fs*2,b.clientHeight*0.35-fs*5.4));
+      if(snap){sy=target;snap=false}else sy+=(target-sy)*0.08;
+      b.scrollTop=sy;}
+  }
+  raf=requestAnimationFrame(frame);
+}
+function seekTo(c){shift+=c-clockS();sy=$("body").scrollTop;follow=true;$("followBtn").setAttribute("aria-pressed","true");tick()}
+function jumpTo(i){
+  const s=S();i=Math.max(0,Math.min(s.length-1,i));
+  shift+=s[i].start-clockS();
+  sy=$("body").scrollTop;follow=true;$("followBtn").setAttribute("aria-pressed","true");
+  tick();
+}
+function goFull(){try{const d=document.documentElement,f=d.requestFullscreen||d.webkitRequestFullscreen;if(f&&!document.fullscreenElement&&!document.webkitFullscreenElement){const r=f.call(d);if(r&&r.catch)r.catch(()=>{})}}catch(e){}}
+function start(){
+  goFull();  // full screen on start, where the browser allows it
+  runStart=now();shift=0;pausedAt=null;pausedTotal=0;follow=true;running=true;
+  $("pause").textContent="Pause";$("followBtn").setAttribute("aria-pressed","true");
+  $("plan").hidden=true;$("run").hidden=false;keepAwake();
+  $("bar").innerHTML=S().filter(x=>x.start>=0).map(x=>`<div class="seg" style="flex-grow:${x.end-x.start}"><i></i></div>`).join("");
+  layout();tick();clearInterval(timer);timer=setInterval(()=>{if(!pausedAt)tick()},500);
+  cancelAnimationFrame(raf);raf=requestAnimationFrame(frame);
+}
+function finish(){
+  running=false;clearInterval(timer);cancelAnimationFrame(raf);
+  const b=$("body");
+  b.innerHTML=`<div class="done"><div class="label">Session complete</div><p style="color:var(--dim)">${ver==="rec"?"End of recording.":"Hand off to your closing."}</p><button id="again">Back to plan</button></div>`;
+  $("again").onclick=()=>{b.innerHTML='<div class="track" id="track"></div>';$("run").hidden=true;$("plan").hidden=false;try{wake&&wake.release()}catch(e){}};
+}
+["touchstart","wheel"].forEach(ev=>$("body").addEventListener(ev,()=>{follow=false;$("followBtn").setAttribute("aria-pressed","false")},{passive:true}));
+$("bar").addEventListener("click",e=>{const sg=e.target.closest(".seg");if(!sg)return;const k=[...$("bar").children].indexOf(sg),x=S().filter(s=>s.start>=0)[k],r=sg.getBoundingClientRect();seekTo(x.start+(x.end-x.start)*Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)))});
+document.querySelector(".sbar").addEventListener("click",e=>{const r=e.currentTarget.getBoundingClientRect(),x=S()[secAt(clockS())];seekTo(x.start+(x.end-x.start)*Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)))});
+const tip=document.createElement("div");tip.className="tip";tip.hidden=true;document.body.appendChild(tip);
+function barTime(e){
+  const sg=e.target.closest&&e.target.closest(".seg");
+  if(sg){const k=[...$("bar").children].indexOf(sg),x=S().filter(s=>s.start>=0)[k],r=sg.getBoundingClientRect();return {x,t:x.start+(x.end-x.start)*Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),top:r.top}}
+  const sb=e.target.closest&&e.target.closest(".sbar");
+  if(sb){const r=sb.getBoundingClientRect(),x=S()[secAt(clockS())];return {x,t:x.start+(x.end-x.start)*Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),top:r.top}}
+  return null;
+}
+function showTip(e){const b=barTime(e);if(!b){tip.hidden=true;return}
+  tip.innerHTML=`${fmt(b.t)}<small>${esc(b.x.name)}</small>`;tip.style.left=Math.min(innerWidth-50,Math.max(50,e.clientX))+"px";tip.style.top=(b.top-6)+"px";tip.hidden=false}
+let tipT=0;
+[$("bar"),document.querySelector(".sbar")].forEach(el=>{
+  el.addEventListener("pointermove",showTip);el.addEventListener("pointerdown",showTip);
+  el.addEventListener("pointerleave",()=>{tip.hidden=true});
+  el.addEventListener("pointerup",e=>{if(e.pointerType!=="mouse"){clearTimeout(tipT);tipT=setTimeout(()=>{tip.hidden=true},900)}});
+});
+$("followBtn").onclick=()=>{follow=!follow;$("followBtn").setAttribute("aria-pressed",String(follow));if(follow)sy=$("body").scrollTop};
+$("start").onclick=start;
+// if full screen was lost (say, scrolling back), any tap in the running view brings it back
+$("run").addEventListener("click",()=>{if(running)goFull()});
+const startAt=i=>{start();jumpTo(i)};
+$("rows").addEventListener("click",e=>{const r=e.target.closest(".row");if(r)startAt(+r.dataset.i)});
+$("rows").addEventListener("keydown",e=>{const r=e.target.closest(".row");if(r&&(e.key==="Enter"||e.key===" ")){e.preventDefault();startAt(+r.dataset.i)}});
+$("prev").onclick=()=>{const s=S(),c=clockS(),i=secAt(c);jumpTo(c-s[i].start>15?i:i-1)};
+$("next").onclick=()=>jumpTo(secAt(clockS())+1);
+$("pause").onclick=()=>{
+  if(pausedAt){pausedTotal+=now()-pausedAt;pausedAt=null;$("pause").textContent="Pause"}
+  else{pausedAt=now();$("pause").textContent="Resume"}tick();};
+$("viewBtn").onclick=()=>{cuesOnly=!cuesOnly;$("viewBtn").textContent=cuesOnly?"Script":"Cues";$("track").classList.toggle("cuesonly",cuesOnly)};
+$("dimBtn").onclick=()=>{const on=document.body.classList.toggle("dim");$("dimBtn").setAttribute("aria-pressed",on)};
+let fs=20;
+try{const v=+localStorage.getItem(KEY+".fs");if(v>=14&&v<=34)fs=v}catch(e){}
+const setFs=v=>{fs=Math.max(14,Math.min(34,v));document.documentElement.style.setProperty("--fs",fs+"px");$("fsVal").textContent=fs+"px";try{localStorage.setItem(KEY+".fs",fs)}catch(e){}};
+$("fsDown").onclick=()=>setFs(fs-1);$("fsUp").onclick=()=>setFs(fs+1);
+setFs(fs);
+$("setBtn").onclick=()=>{$("run").hidden=true;$("settings").hidden=false};
+$("setDone").onclick=()=>{$("settings").hidden=true;$("run").hidden=false;if(running){layout();tick()}};
+$("endBtn").onclick=()=>{$("settings").hidden=true;$("run").hidden=false;finish()};
+window.addEventListener("resize",()=>{if(running){layout();tick()}});
+const setVer=v=>{ver=v;$("vLive").setAttribute("aria-pressed",v==="live");$("vRec").setAttribute("aria-pressed",v==="rec");try{localStorage.setItem(KEY+".ver",v)}catch(e){}renderPlan()};
+$("vLive").onclick=()=>setVer("live");$("vRec").onclick=()=>setVer("rec");
+setVer(ver);
+</script>
+
+<script>
+// Offline: keep a copy of the app on the device; fetch a newer one when online.
+if ("serviceWorker" in navigator) { addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); }); }
+</script>
+</body>
+</html>
