@@ -150,7 +150,7 @@ button:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
   </section>
 
   <section id="settings" hidden>
-    <div><div class="label">Settings · version Nov 4, 10:50 AM</div><h2>Text size</h2></div>
+    <div><div class="label">Settings · version Nov 4, 11:03 AM</div><h2>Text size</h2></div>
     <div class="sizer">
       <button id="fsDown" aria-label="Smaller text">A−</button>
       <span class="mono" id="fsVal">20px</span>
@@ -327,8 +327,9 @@ function clearRun(){try{localStorage.removeItem(KEY+".run")}catch(e){}}
   start();runStart=sv.runStart;shift=sv.shift;pausedAt=sv.pausedAt??sv.at;pausedTotal=sv.pausedTotal;   // come back paused at the moment it closed, so no lines are skipped
   $("pause").textContent=pausedAt?"Resume":"Pause";snap=true;tick();})();
 // Save the moment the app goes to the background, so iOS has written it down before the app is swiped away.
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&running)saveRun()});
-addEventListener("pagehide",()=>{if(running)saveRun()});
+// Leaving the app pauses the session at that moment, whether iOS keeps the app alive or closes it, so it always comes back on the same line.
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&running){if(!pausedAt){pausedAt=now();$("pause").textContent="Resume"}saveRun()}});
+addEventListener("pagehide",()=>{if(running){if(!pausedAt){pausedAt=now();$("pause").textContent="Resume"}saveRun()}});
 </script>
 
 <script>
